@@ -9,32 +9,103 @@
 #include <WiFi.h> // WiFi
 #include "time.h" // Time functions
 
+//--APDS9960 Header files----
+#include <SPI.h>
+#include <Wire.h>
+
+#include <Adafruit_I2CDevice.h>
+#include <SparkFun_APDS9960.h>
+
 //Definitions
 #define TRIGGER_MODE // this is the IR Sensor
 #define WIFI_SSID "wifi name here"
 #define WIFI_PASSWORD "YOUR WIFI PASSWORD"
 
+#define APDS9960_INT 15 // Needs to be an interrupt pin
+
+//Global variables
+SparkFun_APDS9960 apds = SparkFun_APDS9960(); //creating an APDS sensor type object 
+int isr_flag = 0; // Interrupt flag
+uint8_t proximity_data = 0; //Proximity value; (Initialize a buffer (extra memory space) here)
+
+#define PROX_INT_HIGH   50 // Proximity level for interrupt
+#define PROX_INT_LOW    0  // No far interrupt
+
+
 //Constants
 
-const byte ledPin = GPIO_NUM_2; //onboard Led (blue)
-const byte triggerPin = GPIO_NUM_SPECIFYLATERHERE; //Connected to the IR sensor############################################
-const bytw flashpin = ADDOURFLASHPIN; //Custom pin for the flash
+//const byte ledPin = GPIO_NUM_2; //onboard Led (blue)
+const byte triggerPin = GPIO_NUM_15; //Recieve IR sensor input
+
 const byte flashPower = 1;
 
 void sleep ()
 {
     //-----------Trigger setup-----------
-    pinMode(triggerPin, INPUT_PULLDOWN);
+    pinMode(APDS9960_INT, INPUT);  //declare pin 0 as the interrupt data pin (recieves signals)
     
-    //set trigger to when triggerpin has a value of 1
-    esp_sleep_enable_ext0_wakeup(triggerPin, 1);
+    //------APDS9960----
+    //set instructions/routine when pin goes from high to low (falling) (when it gets an interrupt signal)
+    attachInterrupt(APDS9960_INT, interruptRoutine, FALLING);
+
+    
+    //initialize apds
+    if ( apds.init() )
+    {
+        Serial.println(F("APDS-9960 initialization complete"));
+    } 
+    else 
+    {
+        Serial.println(F("Something went wrong during APDS-9960 init!"));
+    }
+
+    // Adjust the Proximity sensor gain
+    if ( !apds.setProximityGain(PGAIN_2X) ) 
+    {
+        Serial.println(F("Something went wrong trying to set PGAIN"));
+    }
+  
+  // Set proximity interrupt thresholds
+    if ( !apds.setProximityIntLowThreshold(PROX_INT_LOW) ) {
+        Serial.println(F("Error writing low threshold"));
+    }
+     if ( !apds.setProximityIntHighThreshold(PROX_INT_HIGH) ) {
+        Serial.println(F("Error writing high threshold"));
+    }
+
+    // Start running the APDS-9960 proximity sensor (interrupts)
+    if ( apds.enableProximitySensor(true) ) {
+        Serial.println(F("Proximity sensor is now running"));
+    } else {
+        Serial.println(F("Something went wrong during sensor init!"));
+    }
+    
+    //Set trigger to when triggerpin has a value of 0
+
+    esp_sleep_enable_ext0_wakeup((gpio_num_t)APDS9960_INT,0);
+    
+    isr_flag = 0;
+    
+    if ( !apds.clearProximityInt() ) {
+      Serial.println("Error clearing interrupt");
+    }
+    
     Serial.println("Going to sleep now");
     esp_deep_sleep_start();
+    Serial.println("This will never print");
 }
 
 void setup()
 {
-    //---------------camera settings---------------
+    Serial.begin(115200);
+    delay(2000); //to initialize the I2C protocal
+
+
+    //------APDS9960 Setup
+
+    //---------------Camera settings---------------
+
+    /*
     sensor_t * s = esp_camera_sensor_get();
     // Gain
     s->set_gain_ctrl(s, 1);      // Auto-Gain Control 0 = disable , 1 = enable
@@ -63,16 +134,40 @@ void setup()
     s->set_colorbar(s, 0);       // Colour Testbar 0 = disable , 1 = enable
     s->set_raw_gma(s, 1);        // 0 = disable , 1 = enable
     s->set_dcw(s, 1);            // 0 = disable , 1 = enable
+    */
 
-
+    //-----Camera Pin setup------------
+    // Pin definition for CAMERA_MODEL_AI_THINKER
+    camera_config_t config;
+    config.ledc_channel = LEDC_CHANNEL_0;
+    config.ledc_timer = LEDC_TIMER_0;
+    config.pin_d0 = 4;
+    config.pin_d1 = 5;
+    config.pin_d2 = 18;
+    config.pin_d3 = 19;
+    config.pin_d4 = 36;
+    config.pin_d5 = 39;
+    config.pin_d6 = 34;
+    config.pin_d7 = 35;
+    config.pin_xclk = 21;
+    config.pin_pclk = 22;
+    config.pin_vsync = 25;
+    config.pin_href = 23;
+    config.pin_sscb_sda = 26;
+    config.pin_sscb_scl = 27;
+    config.pin_pwdn = -1;
+    config.pin_reset = -1;
+    config.xclk_freq_hz = 20000000;
+    config.pixel_format = PIXFORMAT_JPEG;
+    config.fb_count = 1
 
 
     //-----------Wifi setup ---------------
     //sets the wifi mode
-    Wifi.mode(WIFI_STA);
+    /* WiFi.mode(WIFI_STA);
 
     //name for custom network
-    Wifi.setHostname("BirdHouseCamera");
+    WiFi.setHostname("BirdHouseCamera");
     int connectingAttempts = 0;
 
     //connect to wifi
@@ -90,16 +185,42 @@ void setup()
     {
         Serial.println("");
         Serial.println("Wifi connected.");
+        Serial.println("IP address: ");
+        Serial.println(WiFi.localIP());
     }
     //else, set board to sleep
     else
     {
         Serial.println(F("Failed to connect to Wi-Fi"));
         sleep();
+    }  */
+    //--working wifi code
+    const char *ssid_Router  = "Y5";
+    const char *password_Router =  "9057995879";
+     Serial.println("Setup start");
+    WiFi.begin(ssid_Router, password_Router);
+    Serial.println(String("Connecting to ")+ssid_Router);
+    while (WiFi.status() != WL_CONNECTED){
+      delay(500);
+      Serial.print(".");
     }
+    Serial.println("\nConnected, IP address: ");
+    Serial.println(WiFi.localIP());
+    Serial.println("Setup End");
 
+
+    //--------APDS Sensor Setup-------
+    Serial.println("I came back to the setup");
     sleep();
-}    
+    
+}   
+
+void interruptRoutine(){
+    isr_flag = 1;
+}
+
 void loop(){
     
 }
+
+//FIGURE OUT CAMERA SETTINGS (POINTERS) AND TEST THE CAMERA
