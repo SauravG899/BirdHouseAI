@@ -223,4 +223,9 @@ void loop(){
     
 }
 
+//notes
+//---------------------------------------------------------
 //FIGURE OUT CAMERA SETTINGS (POINTERS) AND TEST THE CAMERA
+//do not use pin 27, it is used by camera
+//find what pins are open by using the default camera code and having the pin in, changing the setting
+//cif gives steady stream, pin 14 works.
