@@ -13,8 +13,8 @@
 
 
 //Constants
-const char *ssid_Router  = "";
-const char *password_Router =  "";
+const char *ssid_Router  = "Y5";
+const char *password_Router =  "9057995879";
 
 
 //Definitions
@@ -125,13 +125,25 @@ void setup()
     // Additional settings
     s->set_lenc(s, 1);           // Lens correction 0 = disable , 1 = enable
     s->set_hmirror(s, 0);        // Horizontal flip image 0 = disable , 1 = enable
-    s->set_vflip(s, 0);          // Vertical flip image 0 = disable , 1 = enable
+    s->set_vflip(s, 1);          // Vertical flip image 0 = disable , 1 = enable
     s->set_colorbar(s, 0);       // Colour Testbar 0 = disable , 1 = enable
     s->set_raw_gma(s, 1);        // 0 = disable , 1 = enable
     s->set_dcw(s, 1);            // 0 = disable , 1 = enable
 
-    //----------------------------------------------------------------------------------------------------------------------------
-    // FIREBASE
+
+    //Take photo
+    takePhoto();
+    Serial.println("Taking picture now");
+    
+    //dispenseFood();
+    //sleep();
+}
+
+void loop(){
+  
+}
+
+void initFirebase(){
     // Assign the api key
     configF.api_key = API_KEY;
     //Assign the user sign in credentials
@@ -139,30 +151,19 @@ void setup()
     auth.user.password = USER_PASSWORD;
     //Assign the callback function for the long running token generation task
     configF.token_status_callback = tokenStatusCallback;
-
-    
     Firebase.begin(&configF, &auth);
     Firebase.reconnectWiFi(true);
-    
-    Serial.println("Taking picture now");
-    picture();
-    dispenseFood();
-    sleep();
-}
-
-void loop(){
-  
 }
 
 
-
-void picture() {
+void takePhoto() {
     capturePhotoSaveSpiffs();
-    delay(10000);
-    if (checkPhoto){
+    Serial.println("Initializing Firebase....");
+    initFirebase();
+    Serial.println("Firebase Initialized");
+    
     if (Firebase.ready()){
     Serial.print("Uploading picture... ");
-
     //MIME type should be valid to avoid the download problem.
     //The file systems for flash and SD/SDMMC can be changed in FirebaseFS.h.
     if (Firebase.Storage.upload(&fbdo, STORAGE_BUCKET_ID /* Firebase Storage bucket id */, FILE_PHOTO /* path to local file */, mem_storage_type_flash /* memory storage type, mem_storage_type_flash and mem_storage_type_sd */, FILE_PHOTO /* path of remote file stored in the bucket */, "image/jpeg" /* mime type */)){
@@ -173,19 +174,21 @@ void picture() {
     }
     
   }
-    }
-
+  
 }
 
 
+
 void capturePhotoSaveSpiffs(void)
-{
+{   
+  bool flag = false;
+  while(!flag){
     camera_fb_t *fb = NULL;    //creating an empty buffer
     
-    delay(1000);
+    //delay(3000);
     // take the picture
     fb = esp_camera_fb_get();
-    delay(3000);
+    //delay(9000);
     if (!fb){
         Serial.println("Camera failed to capture picture");
         return;
@@ -193,7 +196,7 @@ void capturePhotoSaveSpiffs(void)
     else {
         Serial.println("Photo captured!:)");
     }
-    delay(1000);
+    //delay(2000);
     
     Serial.printf("Picture file name: %s\n", FILE_PHOTO);
     File file = SPIFFS.open(FILE_PHOTO, FILE_WRITE);
@@ -207,16 +210,22 @@ void capturePhotoSaveSpiffs(void)
       Serial.print(" - Size: ");
       Serial.print(file.size());
       Serial.println(" bytes");
+
+      if (file.size() > 0){
+        flag  = true;
+      }
+      else{
+        flag = false;
+      }
     }
 
     file.close();
-    fb = NULL;
-    delay(1000);
+    esp_camera_fb_return(fb);
+    delay(2000);
+    //flag = checkPhoto(SPIFFS);
+  }
 
-
-    
 }
-
 
 
 void initWifi(){
@@ -253,6 +262,7 @@ void initSPIFFS(){
     delay(500);
     Serial.println("SPIFFS mounted successfully");
   }
+}
 
 void dispenseFood(){
   //Servo configuration
