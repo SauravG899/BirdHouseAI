@@ -40,42 +40,50 @@ def access():
         print ('diff')
         firstinst.set_initial(temp)
 
-        img = cv2.imdecode(temp,cv2.COLOR_BGR2BGR555)
+    img = cv2.imdecode(temp,cv2.COLOR_BGR2BGR555)
 
-        #cv2.imshow('image',img)
-        #cv2.waitKey(0)
+    #cv2.imshow('image',img)
+    #cv2.waitKey(0)
 
-        temp = output(img)
-        indexNumber = temp.index(temp.max())
-        print(indexNumber)
-        find_name(indexNumber)
+    temp = output(img)
+    print("temp: ")
+    print(temp)
+
+    indexNumber = find_index(temp.max(), temp)
+    print("index :" + str(indexNumber))
+    print("name: " + str(find_name(indexNumber)))
 
 
 def prepare_img(image):
-    location = './birdphoto_test.jpg'
+    location = './pejohn.jpg'
     imgsize = 224
-    img_array = cv2.imread(location, cv2.IMREAD)
+    img_array = cv2.imread(location, cv2.IMREAD_COLOR)
     new_array = cv2.resize(img_array, (imgsize, imgsize))
-    return new_array.reshape(-1, imgsize, imgsize, 1)
+    return new_array.reshape(1, imgsize, imgsize, 3)
 
 
 def output(picture):
-    model = tf.keras.model.load_model("ABC.h5")
+    model = tf.keras.models.load_model('./ABC.h5', compile= False)
     prediction = model.predict([prepare_img(picture)])
     return prediction[0]
-
-def find_name(index): 
-    data = pd.read_csv (r'C:\Users\General Use\Desktop\birdhouse\ml\100-birds-species.csv')   
-    df = pd.DataFrame(data, columns= ['class_index','class'])
-    name_dict = df.to_dict()
     
-    for i in name_dict.keys:
+def find_index(int, templist):
+    for i in range(len(templist)):
+           if templist[i] == int:
+                return i
+    return None
+
+    
+def find_name(index): 
+    data = pd.read_csv (r'C:/Users/General Use/Desktop/birdhouse/ml/100-birds-species/class_dict.csv')   
+    df = pd.DataFrame(data, columns= ['class'])
+    name_dict = df.to_dict()
+    print(name_dict["class"])
+    for i in name_dict["class"].keys():
         if i == index:
-            return name_dict[i]
+            return name_dict["class"][i]
 
-while True:
-    access()
-    time.sleep(5*60)
-
-
-
+#while True:
+#    access()
+#    time.sleep(5*60)
+access()
