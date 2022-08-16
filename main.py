@@ -4,6 +4,8 @@ import numpy as np
 import cv2
 import time
 import tensorflow as tf
+import pandas as pd
+
 
 class image_arrays:
     def __init__(self, initial):
@@ -38,12 +40,15 @@ def access():
         print ('diff')
         firstinst.set_initial(temp)
 
-    img = cv2.imdecode(temp,cv2.COLOR_BGR2BGR555)
+        img = cv2.imdecode(temp,cv2.COLOR_BGR2BGR555)
 
-    cv2.imshow('image',img)
-    cv2.waitKey(0)
+        #cv2.imshow('image',img)
+        #cv2.waitKey(0)
 
-    output(img)
+        temp = output(img)
+        indexNumber = temp.index(temp.max())
+        print(indexNumber)
+        find_name(indexNumber)
 
 
 def prepare_img(image):
@@ -55,12 +60,22 @@ def prepare_img(image):
 
 
 def output(picture):
-    model = tf.keras.model.load_model(NAME OF THE MODEL)
-    prediction = model.predict([prepare(picture)])
+    model = tf.keras.model.load_model("ABC.h5")
+    prediction = model.predict([prepare_img(picture)])
     return prediction[0]
 
-
+def find_name(index): 
+    data = pd.read_csv (r'C:\Users\General Use\Desktop\birdhouse\ml\100-birds-species.csv')   
+    df = pd.DataFrame(data, columns= ['class_index','class'])
+    name_dict = df.to_dict()
+    
+    for i in name_dict.keys:
+        if i == index:
+            return name_dict[i]
 
 while True:
     access()
     time.sleep(5*60)
+
+
+
