@@ -11,7 +11,6 @@
 #include <addons/TokenHelper.h>
 #include <ESP32Servo.h>
 
-
 //Constants
 const char *ssid_Router  = "Y5";
 const char *password_Router =  "9057995879";
@@ -24,7 +23,8 @@ const char *password_Router =  "9057995879";
 #define STORAGE_BUCKET_ID "birdhouseai-3373a.appspot.com"
 
 //save photo in spiffs
-#define FILE_PHOTO "/data/birdphoto_test.jpg"
+#define FILE_PHOTO "/data/birdphoto_test"
+using namespace std;
 
 //Objects
 FirebaseData fbdo;
@@ -33,7 +33,7 @@ FirebaseConfig configF;
 Servo myservo;
 
 //Global variables 
-
+int photoCounter = 0;
 
 //Pin definition
 int servoPin = 12;
@@ -166,8 +166,12 @@ void takePhoto() {
     Serial.print("Uploading picture... ");
     //MIME type should be valid to avoid the download problem.
     //The file systems for flash and SD/SDMMC can be changed in FirebaseFS.h.
-    if (Firebase.Storage.upload(&fbdo, STORAGE_BUCKET_ID /* Firebase Storage bucket id */, FILE_PHOTO /* path to local file */, mem_storage_type_flash /* memory storage type, mem_storage_type_flash and mem_storage_type_sd */, FILE_PHOTO /* path of remote file stored in the bucket */, "image/jpeg" /* mime type */)){
+    
+    String completePath = FILE_PHOTO + String(photoCounter) + ".jpg";
+    Serial.println("path: " + completePath);
+    if (Firebase.Storage.upload(&fbdo, STORAGE_BUCKET_ID /* Firebase Storage bucket id */, FILE_PHOTO /* path to local file */, mem_storage_type_flash /* memory storage type, mem_storage_type_flash and mem_storage_type_sd */, completePath /* path of remote file stored in the bucket */, "image/jpeg" /* mime type */)){
       Serial.printf("\nDownload URL: %s\n", fbdo.downloadURL().c_str());
+      photoCounter++;
     }
     else{
       Serial.println(fbdo.errorReason());
@@ -197,8 +201,8 @@ void capturePhotoSaveSpiffs(void)
         Serial.println("Photo captured!:)");
     }
     //delay(2000);
-    
-    Serial.printf("Picture file name: %s\n", FILE_PHOTO);
+    //String temp = FILE_PHOTO + String(photoCounter) + ".jpg";
+    //Serial.printf("Picture file name: %s\n", temp);
     File file = SPIFFS.open(FILE_PHOTO, FILE_WRITE);
     if (!file) {
       Serial.println("Failed to open file in writing mode");
@@ -222,6 +226,7 @@ void capturePhotoSaveSpiffs(void)
     file.close();
     esp_camera_fb_return(fb);
     delay(2000);
+    //photoCounter ++;
     //flag = checkPhoto(SPIFFS);
   }
 
